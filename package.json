@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@api/fundingrates": "file:.api/apis/fundingrates",
     "@chakra-ui/icons": "^2.1.1",
     "@chakra-ui/react": "^2.8.1",
     "@emotion/react": "^11.11.1",
@@ -36,7 +37,8 @@
     "@types/react-dom": "^18.2.7",
     "@types/ws": "^8.5.5",
     "@vitejs/plugin-react": "^4.0.3",
-    "typescript": "^5.0.2",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.3",
     "vite": "^5.4.18"
   }
 }

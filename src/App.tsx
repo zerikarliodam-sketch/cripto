@@ -2,14 +2,13 @@ import {
   Box,
   Container,
   Flex,
-  Grid,
+
   Heading,
   Text,
   HStack,
   VStack,
   IconButton,
   Button,
-  ButtonGroup,
   useColorMode,
   useColorModeValue,
   Switch,
@@ -67,20 +66,17 @@ import {
   RepeatIcon,
   HamburgerIcon,
   CloseIcon,
-  WarningIcon,
   SearchIcon,
   InfoIcon,
 } from '@chakra-ui/icons';
 import { FaDiscord } from 'react-icons/fa';
 import { keyframes } from '@emotion/react';
-import { MarketInformation } from './components/MarketInformation';
 import { LiquidationTable } from './components/LiquidationTable';
 import { WebSocketProvider } from './providers/WebSocketProvider';
 import { useLiquidationStore } from './store/liquidationStore';
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { fetchFundingRates } from './components/FundingRates'; // Adjust the import path as needed
-
+import { FundingRatesTab } from './components/FundingRatesTab';
 // Define motion variants for animations
 const MotionBox = motion(Box);
 
@@ -92,13 +88,7 @@ const pulse = keyframes`
 `;
 
 // Define FundingRate type (copied from FundingRates.tsx for context)
-interface FundingRate {
-  symbol: string;
-  coin: string;
-  lastFundingRate: number;
-  nextFundingTime: number;
-  exchange: string;
-}
+
 
 function App() {
   // Core states
@@ -113,10 +103,6 @@ function App() {
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [animateNotification, setAnimateNotification] = useState(false);
 
-  // Funding rates states
-  const [fundingRates, setFundingRates] = useState<FundingRate[]>([]);
-  const [fundingLoading, setFundingLoading] = useState(true);
-  const [fundingError, setFundingError] = useState<string | null>(null);
 
   // Remove the unused state variable
   const [themeAccent] = useState<'teal' | 'purple' | 'blue' | 'cyan'>('teal');
@@ -158,34 +144,7 @@ function App() {
   const lastLiquidationRef = useRef<{ amount: number; symbol: string } | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Fetch funding rates
-  useEffect(() => {
-    async function loadFundingRates() {
-      try {
-        setFundingLoading(true);
-        setFundingError(null);
-        const rates = await fetchFundingRates(['BTC', 'ETH', 'SOL', 'LTC', 'XRP', 'BNB', 'DOGE', 'ADA', 'SUI']);
-        setFundingRates(rates);
-      } catch (error) {
-        console.error('Error loading funding rates:', error);
-        setFundingError('Failed to load funding rates. Please try again later.');
-        toast({
-          title: 'Error',
-          description: 'Failed to load funding rates.',
-          status: 'error',
-          duration: 5000,
-          isClosable: true,
-          position: 'bottom-right',
-        });
-      } finally {
-        setFundingLoading(false);
-      }
-    }
-    loadFundingRates();
-    // Refresh every 5 minutes
-    const interval = setInterval(loadFundingRates, 5 * 60 * 1000);
-    return () => clearInterval(interval);
-  }, []);
+  
 
   // Toggle exchange selection
   const toggleExchange = (exchange: Exchange) => {
@@ -299,16 +258,6 @@ function App() {
       }
 
       // Show a notification for large liquidations
-      toast({
-        title: 'Large Liquidation!',
-        description: `$${data.amount.toLocaleString()} ${data.symbol} liquidated`,
-        status: 'warning',
-        duration: 5000,
-        isClosable: true,
-        position: 'bottom-right',
-        icon: <WarningIcon />,
-        variant: 'solid',
-      });
     }
   };
 
@@ -338,163 +287,8 @@ function App() {
         };
     }
   };
-// Helper function for arbitrage calculation
-// Funding rates period type
-type FundingPeriod = '8h' | '1d' | '7d' | '30d' | '180d' | '1y';
-
-// Extended FundingRate type for adjusted rates
-interface AdjustedFundingRate extends FundingRate {
-  adjustedFundingRate: number;
-}
-
-// State for funding period
-const [fundingPeriod, setFundingPeriod] = useState<FundingPeriod>('8h');
-
-// Calculate adjusted funding rates based on period
-const adjustedFundingRates = useMemo(() => {
-  const periodsIn8h: Record<FundingPeriod, number> = {
-    '8h': 1,
-    '1d': 3, // 24h / 8h = 3
-    '7d': 3 * 7, // 7 days * 3 periods/day
-    '30d': 3 * 30, // 30 days * 3 periods/day
-    '180d': 3 * 180, // 180 days * 3 periods/day
-    '1y': 3 * 365, // 365 days * 3 periods/day
-  };
-
-  return fundingRates.map(rate => {
-    let baseRate = rate.lastFundingRate;
-    // Adjust Hyperliquid's 1h rate to 8h
-    if (rate.exchange === 'Hyperliquid') {
-      baseRate *= 8;
-    }
-    // Scale to selected period
-    const adjustedRate = baseRate * periodsIn8h[fundingPeriod];
-    return {
-      ...rate,
-      adjustedFundingRate: adjustedRate,
-    };
-  });
-}, [fundingRates, fundingPeriod]);
-
-// Helper function for arbitrage calculation
-// Add sorting state at the top of your component
-const [sortConfig, setSortConfig] = useState<{
-  key: 'coin' | 'exchange' | 'adjustedFundingRate' | 'arbitrage';
-  direction: 'asc' | 'desc';
-}>({ key: 'coin', direction: 'asc' });
-
-// Sorting function
-const sortedFundingRates = useMemo(() => {
-  const sortableItems = [...adjustedFundingRates];
-  if (sortConfig.key === 'coin') {
-    sortableItems.sort((a, b) => {
-      const comparison = a.coin.localeCompare(b.coin);
-      return sortConfig.direction === 'asc' ? comparison : -comparison;
-    });
-  } else if (sortConfig.key === 'exchange') {
-    sortableItems.sort((a, b) => {
-      // Define a custom order for exchanges if you want
-      const exchangeOrder = ['Binance', 'Bybit', 'OKX', 'Hyperliquid'];
-      const aIndex = exchangeOrder.indexOf(a.exchange);
-      const bIndex = exchangeOrder.indexOf(b.exchange);
-      
-      // If both are in our custom order, sort by that
-      if (aIndex !== -1 && bIndex !== -1) {
-        return sortConfig.direction === 'asc' 
-          ? aIndex - bIndex 
-          : bIndex - aIndex;
-      }
-      
-      // Otherwise fall back to alphabetical
-      const comparison = a.exchange.localeCompare(b.exchange);
-      return sortConfig.direction === 'asc' ? comparison : -comparison;
-    });
-  } else if (sortConfig.key === 'adjustedFundingRate') {
-    sortableItems.sort((a, b) => {
-      const comparison = a.adjustedFundingRate - b.adjustedFundingRate;
-      return sortConfig.direction === 'asc' ? comparison : -comparison;
-    });
-  } else if (sortConfig.key === 'arbitrage') {
-    // For arbitrage, we need to calculate the diff first
-    sortableItems.sort((a, b) => {
-      const aArbitrage = calculateArbitrageDiff(adjustedFundingRates, a.coin);
-      const bArbitrage = calculateArbitrageDiff(adjustedFundingRates, b.coin);
-      
-      // Handle cases where arbitrage might be null
-      const aValue = aArbitrage !== null ? Math.abs(aArbitrage) : -Infinity;
-      const bValue = bArbitrage !== null ? Math.abs(bArbitrage) : -Infinity;
-      
-      const comparison = aValue - bValue;
-      return sortConfig.direction === 'asc' ? comparison : -comparison;
-    });
-  }
-  return sortableItems;
-}, [adjustedFundingRates, sortConfig]);
-
-// Helper function to calculate arbitrage diff (extracted from your existing calculateArbitrage)
-const calculateArbitrageDiff = (rates: AdjustedFundingRate[], coin: string): number | null => {
-  const coinRates = rates.filter(r => r.coin === coin);
-  if (coinRates.length < 2) return null;
-  const highest = coinRates.reduce(
-    (max, r) => (r.adjustedFundingRate > max.adjustedFundingRate ? r : max),
-    coinRates[0]
-  );
-  const lowest = coinRates.reduce(
-    (min, r) => (r.adjustedFundingRate < min.adjustedFundingRate ? r : min),
-    coinRates[0]
-  );
-  return highest.adjustedFundingRate - lowest.adjustedFundingRate;
-};
 
 
-
-// Modified calculateArbitrage to use the diff
-const calculateArbitrage = (rates: AdjustedFundingRate[], coin: string) => {
-  const diff = calculateArbitrageDiff(rates, coin);
-  if (diff === null || Math.abs(diff) < 0.01) return null;
-
-  const coinRates = rates.filter(r => r.coin === coin);
-  const highest = coinRates.reduce(
-    (max, r) => (r.adjustedFundingRate > max.adjustedFundingRate ? r : max),
-    coinRates[0]
-  );
-  const lowest = coinRates.reduce(
-    (min, r) => (r.adjustedFundingRate < min.adjustedFundingRate ? r : min),
-    coinRates[0]
-  );
-
-  return (
-    <Tooltip
-      label={`Long on ${lowest.exchange} (pay/receive ${lowest.adjustedFundingRate.toFixed(4)}%), Short on ${highest.exchange} (receive/pay ${highest.adjustedFundingRate.toFixed(4)}%)`}
-      placement="top"
-      hasArrow
-    >
-      <VStack spacing={1} align="center">
-        <Badge
-          colorScheme={diff > 0 ? 'blue' : 'gray'}
-          variant="subtle"
-          fontSize="sm"
-          px={2}
-          py={1}
-        >
-          {diff.toFixed(4)}%
-        </Badge>
-        <Text fontSize="xs" color={mutedText}>
-          Long {lowest.exchange} → Short {highest.exchange}
-        </Text>
-      </VStack>
-    </Tooltip>
-  );
-};
-
-// Function to request sort
-const requestSort = (key: 'coin' | 'exchange' | 'adjustedFundingRate' | 'arbitrage') => {
-  let direction: 'asc' | 'desc' = 'asc';
-  if (sortConfig.key === key && sortConfig.direction === 'asc') {
-    direction = 'desc';
-  }
-  setSortConfig({ key, direction });
-};
   // Apply status properties
   const statusProps = getConnectionStatusProps();
 
@@ -922,7 +716,6 @@ const requestSort = (key: 'coin' | 'exchange' | 'adjustedFundingRate' | 'arbitra
 <Tabs position="relative" variant="unstyled" colorScheme={themeAccent}>
   <TabList>
     <Tab _selected={{ color: accentColor, fontWeight: "medium" }}>Liquidation Feed</Tab>
-    <Tab _selected={{ color: accentColor, fontWeight: "medium" }}>Market Info</Tab>
     <Tab _selected={{ color: accentColor, fontWeight: "medium" }}>Funding Rates</Tab>
   </TabList>
   <TabIndicator mt="-1.5px" height="2px" bg={accentColor} borderRadius="1px" />
@@ -984,268 +777,11 @@ const requestSort = (key: 'coin' | 'exchange' | 'adjustedFundingRate' | 'arbitra
         )}
       </Fade>
     </TabPanel>
+ 
 
-    {/* Market information Panel */}
-    <TabPanel px={0} pt={4}>
-  <Flex align="center" mb={4}>
-    <Text fontSize="lg" fontWeight="bold" color={accentColor}>Market Information</Text>
-    <Spacer />
-    <Tooltip label="Data refreshes every 5 minutes">
-      <Badge colorScheme="blue" fontSize="xs" p={1} borderRadius="md">Auto-refresh</Badge>
-    </Tooltip>
-  </Flex>
-  <Fade in={!isLoading} transition={{ enter: { duration: 0.5 } }}>
-    {isLoading ? (
-      <Skeleton height="150px" borderRadius="md" startColor={`${themeAccent}.100`} endColor={`${themeAccent}.500`} />
-    ) : (
-      <MarketInformation />
-    )}
-  </Fade>
-</TabPanel>
-
-<TabPanel px={0} pt={6}>
-  {/* Header Section */}
-  <Box 
-    bg={useColorModeValue(`${themeAccent}.50`, 'gray.800')}
-    borderRadius="lg"
-    p={6}
-    mb={6}
-    border="1px solid"
-    borderColor={useColorModeValue(`${themeAccent}.100`, 'gray.700')}
-  >
-    <Flex align="center" justify="space-between">
-      <VStack align="start" spacing={1}>
-        <Text 
-          fontSize="xl" 
-          fontWeight="700" 
-          color={useColorModeValue(accentColor, 'white')}
-        >
-          Funding Rates
-        </Text>
-        <Text 
-          fontSize="sm" 
-          color={useColorModeValue(mutedText, 'gray.300')}
-        >
-          Real-time funding rates across exchanges
-        </Text>
-      </VStack>
-
-      <HStack spacing={2}>
-        <Badge 
-          colorScheme={themeAccent}
-          fontSize="xs" 
-          px={3} 
-          py={1}
-          borderRadius="full"
-          fontWeight="600"
-        >
-          Multi-Exchange
-        </Badge>
-        <Badge 
-          colorScheme="teal"
-          fontSize="xs" 
-          px={3} 
-          py={1}
-          borderRadius="full"
-          fontWeight="600"
-        >
-          Auto-Refresh
-        </Badge>
-      </HStack>
-    </Flex>
-  </Box>
-
-  {/* Time Period Selector */}
-  <Box mb={6}>
-    <Text 
-      fontSize="sm" 
-      fontWeight="600" 
-      color={useColorModeValue(accentColor, 'gray.200')} 
-      mb={2}
-    >
-      Time Period
-    </Text>
-    <ButtonGroup size="sm" variant="outline">
-      {['8h', '1d', '7d', '30d', '180d', '1y'].map((period) => (
-        <Button
-          key={period}
-          onClick={() => setFundingPeriod(period as FundingPeriod)}
-          variant={fundingPeriod === period ? 'solid' : 'outline'}
-          colorScheme={themeAccent}
-        >
-          {period}
-        </Button>
-      ))}
-    </ButtonGroup>
-  </Box>
-
-  {/* Content Area */}
-  {fundingError ? (
-    <Alert status="error" borderRadius="lg" mb={6}>
-      <AlertIcon />
-      <Box>
-        <AlertTitle>Data Loading Error</AlertTitle>
-        <AlertDescription fontSize="sm">
-          {fundingError}
-        </AlertDescription>
-      </Box>
-    </Alert>
-  ) : fundingLoading ? (
-    <VStack spacing={4} align="stretch">
-      <Skeleton height="40px" borderRadius="md" />
-      {Array(5).fill(0).map((_, i) => (
-        <Skeleton key={i} height="35px" borderRadius="md" />
-      ))}
-    </VStack>
-  ) : adjustedFundingRates.length > 0 ? (
-    <Box
-      bg={useColorModeValue('white', 'gray.800')}
-      borderRadius="lg"
-      overflow="hidden"
-      border="1px solid"
-      borderColor={useColorModeValue('gray.200', 'gray.700')}
-    >
-      {/* Table Header */}
-      <Box
-        bg={useColorModeValue('gray.50', 'gray.700')}
-        px={4}
-        py={3}
-      >
-        <Grid
-          templateColumns="2fr repeat(4, 1fr) 1fr"
-          gap={4}
-          alignItems="center"
-        >
-          <Text
-            fontSize="xs"
-            fontWeight="600"
-            color={useColorModeValue('gray.600', 'gray.300')}
-            textTransform="uppercase"
-            letterSpacing="0.5px"
-            onClick={() => requestSort('coin')}
-            cursor="pointer"
-          >
-            Coin {sortConfig.key === 'coin' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
-          </Text>
-          {['Binance', 'Bybit', 'OKX', 'Hyperliquid'].map(exchange => (
-            <Text
-              key={exchange}
-              fontSize="xs"
-              fontWeight="600"
-              color={useColorModeValue('gray.600', 'gray.300')}
-              textTransform="uppercase"
-              letterSpacing="0.5px"
-              textAlign="center"
-            >
-              {exchange}
-            </Text>
-          ))}
-          <Text
-            fontSize="xs"
-            fontWeight="600"
-            color={useColorModeValue('gray.600', 'gray.300')}
-            textTransform="uppercase"
-            letterSpacing="0.5px"
-            textAlign="center"
-          >
-            Arbitrage
-          </Text>
-        </Grid>
-      </Box>
-
-      {/* Table Body */}
-      <Box maxH="500px" overflowY="auto">
-        {Array.from(new Set(sortedFundingRates.map(rate => rate.coin))).map((coin, index) => {
-          const coinRates = sortedFundingRates.filter(rate => rate.coin === coin);
-          const exchangeRates: Record<string, AdjustedFundingRate> = {};
-          
-          coinRates.forEach(rate => {
-            exchangeRates[rate.exchange] = rate;
-          });
-          
-          return (
-            <Box
-              key={coin}
-              borderBottom="1px solid"
-              borderColor={useColorModeValue('gray.100', 'gray.700')}
-              bg={index % 2 === 0 ? useColorModeValue('gray.50', 'gray.800') : 'transparent'}
-              px={4}
-              py={3}
-            >
-              <Grid
-                templateColumns="2fr repeat(4, 1fr) 1fr"
-                gap={4}
-                alignItems="center"
-              >
-                {/* Coin */}
-                <Flex align="center" gap={2}>
-                  <Text 
-                    fontWeight="600" 
-                    fontSize="sm" 
-                    color={useColorModeValue('gray.800', 'white')}
-                  >
-                    {coin}
-                  </Text>
-                </Flex>
-
-                {/* Exchange Rates */}
-                {['Binance', 'Bybit', 'OKX', 'Hyperliquid'].map(exchange => {
-                  const rate = exchangeRates[exchange];
-                  return (
-                    <Box key={`${coin}-${exchange}`} textAlign="center">
-                      {rate ? (
-                        <Text
-                          fontSize="sm"
-                          fontWeight="500"
-                          color={useColorModeValue(
-                            rate.adjustedFundingRate >= 0 ? 'green.600' : 'red.600',
-                            rate.adjustedFundingRate >= 0 ? 'green.300' : 'red.300'
-                          )}
-                        >
-                          {rate.adjustedFundingRate >= 0 ? '+' : ''}
-                          {rate.adjustedFundingRate.toFixed(4)}%
-                        </Text>
-                      ) : (
-                        <Text color={useColorModeValue('gray.400', 'gray.500')} fontSize="sm">
-                          -
-                        </Text>
-                      )}
-                    </Box>
-                  );
-                })}
-
-                {/* Arbitrage */}
-                <Box textAlign="center">
-                  {calculateArbitrage(adjustedFundingRates, coin) || (
-                    <Text color={useColorModeValue('gray.400', 'gray.500')} fontSize="sm">
-                      -
-                    </Text>
-                  )}
-                </Box>
-              </Grid>
-            </Box>
-          );
-        })}
-      </Box>
-    </Box>
-  ) : (
-    <Box
-      bg={useColorModeValue('white', 'gray.800')}
-      borderRadius="lg"
-      p={8}
-      textAlign="center"
-      border="1px dashed"
-      borderColor={useColorModeValue('gray.200', 'gray.600')}
-    >
-      <Text 
-        color={useColorModeValue('gray.500', 'gray.400')} 
-        fontSize="sm"
-      >
-        No funding rate data available
-      </Text>
-    </Box>
-  )}
-</TabPanel>
+              <TabPanel px={0} pt={0}>
+                <FundingRatesTab />
+              </TabPanel>
   </TabPanels>
 </Tabs>
                 </Box>
