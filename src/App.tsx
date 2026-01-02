@@ -911,7 +911,7 @@ function App() {
               </Tooltip>
               {/* Discord Link */}
               <Tooltip label="Join our Discord community">
-                <Link href="http" isExternal>
+                <Link href="https://discord.gg/F4F9d36rw" isExternal>
                   <Tag size="sm" colorScheme="purple" variant="subtle" cursor="pointer">
                     <TagLeftIcon boxSize="10px" as={FaDiscord} />
                     <TagLabel>Discord</TagLabel>
