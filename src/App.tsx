@@ -470,7 +470,7 @@ function App() {
                 />
                 <Heading size={headingSize} color={accentColor}>
                   <HStack>
-                    <Text>Crypto Liquidation Feed</Text>
+                    <Text>Netlivy Liquidation </Text>
                     <Tooltip label={statusProps.tooltip} placement="top">
                       <Tag
                         size="md"
@@ -919,7 +919,7 @@ function App() {
                 </Link>
               </Tooltip>
             </HStack>
-            <Text>© {new Date().getFullYear()}Netlivy®</Text>
+            <Text>© {new Date().getFullYear()}•Netlivy</Text>
           </Box>
         </Container>
       </Box>
