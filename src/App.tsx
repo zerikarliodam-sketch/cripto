@@ -52,7 +52,7 @@ import {
   ListItem,
   Circle,
   Link,
-  
+
 } from '@chakra-ui/react';
 import {
   SunIcon,
@@ -144,7 +144,7 @@ function App() {
   const lastLiquidationRef = useRef<{ amount: number; symbol: string } | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  
+
 
   // Toggle exchange selection
   const toggleExchange = (exchange: Exchange) => {
@@ -777,7 +777,7 @@ function App() {
         )}
       </Fade>
     </TabPanel>
- 
+
 
               <TabPanel px={0} pt={0}>
                 <FundingRatesTab />
@@ -910,16 +910,16 @@ function App() {
                 </Tag>
               </Tooltip>
               {/* Discord Link */}
-              <Tooltip label="Join our Instagram">
-                <Link href="https://instagram.com/car1movvvv" isExternal>
+              <Tooltip label="Join our Discord community">
+                <Link href="http" isExternal>
                   <Tag size="sm" colorScheme="purple" variant="subtle" cursor="pointer">
-   
-                    <TagLabel>Instagram</TagLabel>
+                    <TagLeftIcon boxSize="10px" as={FaDiscord} />
+                    <TagLabel>Discord</TagLabel>
                   </Tag>
                 </Link>
               </Tooltip>
             </HStack>
-            <Text>© {new Date().getFullYear()} Netlivy Crypto Liquidation </Text>
+            <Text>© {new Date().getFullYear()}Netlivy®</Text>
           </Box>
         </Container>
       </Box>
