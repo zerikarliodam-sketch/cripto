@@ -913,7 +913,7 @@ function App() {
               <Tooltip label="Join our Instagram">
                 <Link href="https://instagram.com/car1movvvv" isExternal>
                   <Tag size="sm" colorScheme="purple" variant="subtle" cursor="pointer">
-                    <TagLeftIcon boxSize="10px" as={FaInstagram} />
+   
                     <TagLabel>Instagram</TagLabel>
                   </Tag>
                 </Link>
